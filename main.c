@@ -10,7 +10,9 @@ int main(int args, char **argv) {
   while(1) {
     print_user_prompt();
     read(input_buffer);
-    char * output = eval(input_buffer);
+
+    TokenReader * token_reader = (TokenReader *) tokenize(input_buffer);
+    char * output = eval(token_reader);
     print(output);
   }
   

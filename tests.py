@@ -28,9 +28,9 @@ def run_script(script):
 
 class TestOlis(unittest.TestCase):
     def test_printing(self):
-        output = run_script(["just print the input", "asdasd"])
+        output = run_script(["(+ 4 63)", "  ( * 2 (-     91  5   ))  "])
 
-        real_output = ["just print the input", "asdasd"]
+        real_output = ["( + 4 63 )", "( * 2 ( - 91 5 ) )"]
         real_output = [prompt + string for string in real_output]
         real_output.append(prompt)
 

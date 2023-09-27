@@ -2,7 +2,8 @@
 #define EVAL_H
 
 #include "../include/buffer.h"
+#include "../include/reader.h"
 
-char * eval(InputBuffer * input_buffer);
+char * eval(TokenReader * reader);
 
 #endif // EVAL_H
