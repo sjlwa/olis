@@ -18,8 +18,8 @@ void free_input_buffer(InputBuffer * input_buffer) {
 void read(InputBuffer * input_buffer) {
   
   ssize_t bytes_read = getline(&(input_buffer->buffer),
-			       &(input_buffer->size),
-			   stdin);
+                              &(input_buffer->size),
+                              stdin);
 
   if (bytes_read == -1) {
     free_input_buffer(input_buffer);
