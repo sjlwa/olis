@@ -28,14 +28,15 @@ def run_script(script):
 
 class TestOlis(unittest.TestCase):
     def test_printing(self):
-        output = run_script(["(+ 4 63)", "  ( * 2 (-     91  5   ))  "])
-
-        real_output = ["( + 4 63 )", "( * 2 ( - 91 5 ) )"]
-        real_output = [prompt + string for string in real_output]
-        real_output.append(prompt)
+        # TODO: test missing ) 
+        output = run_script(["(+  4  63)", "  ( * 2 (-     91  5   ))  ", " (   - x ( !  (- 67 p))   )"])
+    
+        expected_output = ["(+ 4 63)", "(* 2 (- 91 5))", "(- x (! (- 67 p)))"]
+        expected_output = [prompt + string for string in expected_output]
+        expected_output.append(prompt)
 
         self.assertEqual(
-          real_output,
+          expected_output,
           output)
 
 

@@ -9,10 +9,9 @@ int main(int args, char **argv) {
   
   while(1) {
     print_user_prompt();
-    read(input_buffer);
-
-    TokenReader * token_reader = (TokenReader *) tokenize(input_buffer);
-    char * output = eval(token_reader);
+    read_input(input_buffer);
+    Lisp * lisp = read_buffer(input_buffer);
+    char * output = eval(lisp);
     print(output);
   }
   
