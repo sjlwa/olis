@@ -19,23 +19,29 @@ void free_input_buffer(InputBuffer * input_buffer) {
   free(input_buffer);
 }
 
-void read_input(InputBuffer * input_buffer) {
+int read_input(InputBuffer * input_buffer) {
   
   ssize_t bytes_read = getline(&(input_buffer->buffer),
                               &(input_buffer->size),
                               stdin);
-  // EOF after input
-  if (feof(stdin)) exit(0);
 
-  if (bytes_read == -1) {
+  // EOF after input
+  if (feof(stdin)) {
+    free_input_buffer(input_buffer);
+    exit(0);
+  }
+
+  // < 2 takes getline error and \n = 1, X\n = 2
+  if (bytes_read < 2) {
     free_input_buffer(input_buffer);
     input_buffer = (InputBuffer *) new_input_buffer();
+    return 1;
 
   } else {
     input_buffer->buffer[bytes_read - 1] = '\0';
     input_buffer->length = bytes_read - 1;
   }
-    
+  return 0;
 }
 
 TokenReader * new_reader(void) {
@@ -156,6 +162,19 @@ Lisp * read_buffer(InputBuffer * input_buffer) {
   return read_format(token_reader);
 }
 
+Lisp * new_lisp(LispType type, void * data) {
+  Lisp * lisp = (Lisp *) malloc(sizeof(Lisp));
+  lisp->type = type;
+  lisp->data = data;
+  return lisp;
+}
+
+LispAtom * new_atom(char * value) {
+  LispAtom * atom = (LispAtom *) malloc(sizeof(LispAtom));
+  atom->value = value;
+  return atom;
+}
+
 Lisp * read_list(TokenReader * reader) {
   
   reader_next(reader);
@@ -167,41 +186,46 @@ Lisp * read_list(TokenReader * reader) {
   
    while (1) {
      Lisp * lisp_child = read_format(reader);
-    if (lisp_child->type == ATOM) {
+     if (lisp_child->type == ATOM) {       
       LispAtom * atom = (LispAtom *) lisp_child->data;
-
       if (atom->value[0] == ')') {
-	free(lisp_child->data);
-	free(lisp_child);
-	break;
+      	free(lisp_child->data);
+      	free(lisp_child);
+      	break;
       }
     }
     list_insert(list, lisp_child);
   }
     
   // List wrapper
-  Lisp * lisp_parent = (Lisp *) malloc(sizeof(Lisp));
-  lisp_parent->data = (void *) list;
-  lisp_parent->type = LIST;
+  Lisp * lisp_parent = new_lisp(LIST, (void *) list);
   return lisp_parent;
 }
 
+
 Lisp * read_atom(TokenReader * reader) {
-  LispAtom * atom = (LispAtom *) malloc(sizeof(LispAtom)); 
-  atom->value = reader_next(reader);
- 
-  Lisp * lisp = (Lisp *) malloc(sizeof(Lisp));
-  lisp->type = ATOM;
-  lisp->data = (void *) atom;
- 
+  LispAtom * atom = new_atom(reader_next(reader));
+  Lisp * lisp = new_lisp(ATOM, (void *) atom);
+  return lisp;
+}
+
+Lisp * read_symbol(TokenReader * reader) {
+  LispSymbol * symbol = (LispSymbol *) malloc(sizeof(LispSymbol));
+  symbol->value = reader_next(reader);
+
+  Lisp * lisp = new_lisp(SYMBOL, (void *) symbol);
   return lisp;
 }
 
 Lisp * read_format(TokenReader * reader) {
   char * token = reader_peek(reader);
-  if (token[0] == '(') {
-    return read_list(reader);
-  } else {
-    return read_atom(reader);
+  
+  if (strlen(token) == 1) {
+    switch(token[0]) {
+      case '(': return read_list(reader);
+      case '+': return read_symbol(reader);
+      default: break;
+    }
   }
+  return read_atom(reader);
 }

@@ -1,11 +1,13 @@
-#include "../include/buffer.h"
+#define _OPEN_SYS_ITOA_EXT
+
+#include "../include/types.h"
 #include "../include/reader.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
 
-char * eval_token_reader(TokenReader * reader) {
+char * build_from_token_reader(TokenReader * reader) {
   char * output = malloc(sizeof(char));
   int output_length = 0;
 
@@ -25,7 +27,7 @@ char * eval_token_reader(TokenReader * reader) {
 }
 
 
-char * __eval(Lisp * lisp, char * out, size_t * out_len) {
+char * __build_from_lisp(Lisp * lisp, char * out, size_t * out_len) {
 
   if (out_len == NULL) {
     out_len = malloc(sizeof(size_t));
@@ -45,6 +47,19 @@ char * __eval(Lisp * lisp, char * out, size_t * out_len) {
       
       return out;
     }
+
+    case SYMBOL: {
+      LispSymbol * symbol = (LispSymbol *) lisp->data;
+      size_t value_len = strlen(symbol->value);
+
+      out = realloc(out, *out_len + value_len + 2);
+      memcpy(&out[*out_len], symbol->value, value_len);
+      *out_len += value_len;
+      out[*out_len] = ' ';
+      out[++(*out_len)] = '\0';
+      
+      return out;
+    }
       
     case LIST: {
       LispList * list = (LispList *) lisp->data;
@@ -54,8 +69,8 @@ char * __eval(Lisp * lisp, char * out, size_t * out_len) {
       out[++(*out_len)] = '\0';
 
       for (int i=0; i<list->length; ++i) {
-	Lisp * lisp = list->children[i];
-	__eval(lisp, out, out_len);
+        Lisp * lisp = list->children[i];
+        __build_from_lisp(lisp, out, out_len);
       }
 
       out[*out_len - 1] = ')';
@@ -66,4 +81,83 @@ char * __eval(Lisp * lisp, char * out, size_t * out_len) {
   }
   
   return "";
+}
+
+
+Lisp * __add(Lisp * a, Lisp * b) {
+
+  LispAtom * a1 = a->data;
+  LispAtom * b1 = b->data;
+  int ai = atoi(a1->value);
+  int bi = atoi(b1->value);
+  int r = ai + bi;
+  char value_buffer[64];
+  // TODO: dynamic value_buffer size
+  snprintf(value_buffer, 64, "%d", r);
+
+  return new_lisp(ATOM, (void *) new_atom(value_buffer));
+}
+
+/* Lisp * __sub(Lisp * a, Lisp * b) { return a - b; } */
+/* Lisp * __mul(Lisp * a, Lisp * b) { return a * b; } */
+/* Lisp * __div(Lisp * a, Lisp * b) { return a / b; } */
+/* Lisp * __mod(Lisp * a, Lisp * b) { return a % b; } */
+//int __undefined(int a, int b) { exit(1); }
+
+symfunc repl_env(char * sym) {
+  if (strlen(sym) == 1) {
+    switch (sym[0]) {
+      case '+': return &__add;
+      /* case '-': return &__sub; */
+      /* case '*': return &__mul; */
+      /* case '/': return &__div; */
+      /* case '%': return &__mod; */
+    }
+  }
+  
+  fprintf(stdout, "Error: Undefined Symbol %s\n", sym);
+  exit(1);
+  //return &__undefined;
+}
+
+Lisp * eval_ast(Lisp * lisp) {
+  switch(lisp->type) {
+    case ATOM: {
+      return lisp;
+    }
+    case LIST: {
+      LispList * list = (LispList *) lisp->data;
+
+      for (int i=0; i<list->length; i++) {
+        list->children[i] = eval_ast(list->children[i]);
+      }
+
+      Lisp * lisp_symbol = list->children[0];
+      LispSymbol * symbol = lisp_symbol->data;
+      symfunc func = symbol->func;
+    
+      // TODO: Fix void lisp when asigning same expression more than once
+      // TODO: Fix void lisp when list have more than 3 elements
+
+      Lisp * acumulator = new_lisp(ATOM, new_atom("0"));
+
+      //Execute the assigned method
+      for (int i=1; i<list->length; i++) {
+        Lisp * lisp_el = list->children[i];
+        acumulator = func(acumulator, lisp_el);
+      }
+      
+      return acumulator;
+    }
+    case SYMBOL: {
+      LispSymbol * symbol = (LispSymbol *) lisp->data;
+      symbol->func = repl_env(symbol->value);
+      return lisp;
+    }
+  }
+  return new_lisp(ATOM, (void *) new_atom(""));
+}
+
+Lisp * eval(Lisp * lisp) {
+  return eval_ast(lisp);
 }

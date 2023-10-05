@@ -1,34 +1,10 @@
 #ifndef READER_H
 #define READER_H
 
-#include "buffer.h"
+#include "types.h"
 
 InputBuffer * new_input_buffer(void);
-void read_input(InputBuffer * input_buffer);
-
-typedef struct {
-  char ** tokens;
-  size_t position;
-  size_t length;
-} TokenReader;
-
-typedef enum {
-  LIST, ATOM
-} LispType;
-
-typedef struct {
-  LispType type;
-  void * data;
-} Lisp;
-
-typedef struct {
-  Lisp ** children;
-  size_t length;
-} LispList;
-
-typedef struct {
-  char * value;
-} LispAtom;
+int read_input(InputBuffer * input_buffer);
 
 TokenReader * new_reader(void);
 void free_reader(TokenReader * reader);
@@ -40,6 +16,8 @@ Lisp * read_buffer(InputBuffer * input_buffer);
 Lisp * read_list(TokenReader * reader);
 Lisp * read_atom(TokenReader * reader);
 Lisp * read_format(TokenReader * reader);
+Lisp * new_lisp(LispType type, void * data);
+LispAtom * new_atom(char * value);
 LispList * new_list(void);
 void list_insert(LispList * list, Lisp * atom);
 

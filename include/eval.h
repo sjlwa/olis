@@ -1,11 +1,13 @@
 #ifndef EVAL_H
 #define EVAL_H
 
-#include "../include/buffer.h"
+#include "../include/types.h"
 #include "../include/reader.h"
 
-char * eval_token_reader(TokenReader * reader);
-char * __eval(Lisp * lisp, char ** out_addr, size_t * out_len);
-#define eval(lisp) __eval(lisp, NULL, NULL);
+char * build_from_token_reader(TokenReader * reader);
+char * __build_from_lisp(Lisp * lisp, char * out, size_t * out_len);
+#define build_from_lisp(lisp) __build_from_lisp(lisp, NULL, NULL);
+Lisp * eval(Lisp * lisp);
+Lisp * eval_ast(Lisp * lisp);
 
 #endif // EVAL_H
