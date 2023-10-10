@@ -9,6 +9,6 @@ void print_user_prompt(void) {
   printf("%s> ", pw->pw_name);
 }
 
-void print(char * output) {
+void print_output(char * output) {
   printf("%s\n", output);
 }

@@ -144,10 +144,15 @@ TokenReader * tokenize(InputBuffer * input_buffer) {
 }
 
 void list_insert(LispList * list, Lisp * lisp) {
-  size_t new_size = sizeof(LispList) * list->length + sizeof(LispList);
+  size_t new_size = sizeof(LispList) * list->length + 1;
   list->children = realloc(list->children, new_size);
-  list->children[list->length] = lisp;
-  list->length++;
+  if (list->children != NULL) {
+    list->children[list->length] = lisp;
+    list->length++;
+  } else {
+    fprintf(stderr, "Error: list realloc\n");
+    exit(1);
+  }
 }
 
 LispList * new_list(void) {
@@ -155,6 +160,13 @@ LispList * new_list(void) {
   list->children = NULL;
   list->length = 0;
   return list;
+}
+
+void free_list(LispList * list) {
+  for (int i=0; i<list->length; i++) {
+    free_lisp(list->children[i]);
+  }
+  free(list->children);
 }
 
 Lisp * read_buffer(InputBuffer * input_buffer) {
@@ -169,10 +181,46 @@ Lisp * new_lisp(LispType type, void * data) {
   return lisp;
 }
 
+void free_lisp(Lisp * lisp) {
+  switch (lisp->type) {
+    case ATOM: {
+      free_atom(lisp->data);
+      break;
+    }
+    case LIST: {
+      free_list(lisp->data);
+      break;
+    }
+    case SYMBOL: {
+      free_symbol(lisp->data);
+      break;
+    }
+    default: break;
+  }  
+  free(lisp);
+}
+
 LispAtom * new_atom(char * value) {
   LispAtom * atom = (LispAtom *) malloc(sizeof(LispAtom));
-  atom->value = value;
+  atom->value = strdup(value);
   return atom;
+}
+
+void free_atom(LispAtom * atom) {
+  free(atom->value);
+  free(atom);
+}
+
+
+LispSymbol * new_symbol(char * value) {
+  LispSymbol * symbol = (LispSymbol *) malloc(sizeof(LispSymbol));
+  symbol->value = strdup(value);
+  return symbol;
+}
+
+void free_symbol(LispSymbol * symbol) {
+  free(symbol->value);
+  free(symbol);
 }
 
 Lisp * read_list(TokenReader * reader) {
@@ -189,8 +237,7 @@ Lisp * read_list(TokenReader * reader) {
      if (lisp_child->type == ATOM) {       
       LispAtom * atom = (LispAtom *) lisp_child->data;
       if (atom->value[0] == ')') {
-      	free(lisp_child->data);
-      	free(lisp_child);
+        free_lisp(lisp_child);
       	break;
       }
     }
@@ -210,9 +257,7 @@ Lisp * read_atom(TokenReader * reader) {
 }
 
 Lisp * read_symbol(TokenReader * reader) {
-  LispSymbol * symbol = (LispSymbol *) malloc(sizeof(LispSymbol));
-  symbol->value = reader_next(reader);
-
+  LispSymbol * symbol = new_symbol(reader_next(reader));
   Lisp * lisp = new_lisp(SYMBOL, (void *) symbol);
   return lisp;
 }
@@ -227,5 +272,9 @@ Lisp * read_format(TokenReader * reader) {
       default: break;
     }
   }
+  if (strcmp(token, "exit") == 0) {
+    return read_symbol(reader);
+  }
+  
   return read_atom(reader);
 }

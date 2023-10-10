@@ -33,6 +33,11 @@ char * __build_from_lisp(Lisp * lisp, char * out, size_t * out_len) {
     out_len = malloc(sizeof(size_t));
     *out_len = 0;
   }
+
+  if (out == NULL) {
+    out = malloc(sizeof(char));
+    out[*out_len] = '\0';
+  }
   
   switch(lisp->type) {
     case ATOM: {
@@ -61,6 +66,8 @@ char * __build_from_lisp(Lisp * lisp, char * out, size_t * out_len) {
       return out;
     }
       
+    // TODO: (FIX) Bad reading of a list 
+    // example.  ( ( () ) ( ()()()() ) ) ...
     case LIST: {
       LispList * list = (LispList *) lisp->data;
 
@@ -84,21 +91,32 @@ char * __build_from_lisp(Lisp * lisp, char * out, size_t * out_len) {
 }
 
 
-Lisp * __add(Lisp * a, Lisp * b) {
-
-  LispAtom * a1 = a->data;
-  LispAtom * b1 = b->data;
-  int ai = atoi(a1->value);
-  int bi = atoi(b1->value);
-  int r = ai + bi;
-  char value_buffer[64];
-  // TODO: dynamic value_buffer size
-  snprintf(value_buffer, 64, "%d", r);
-
-  return new_lisp(ATOM, (void *) new_atom(value_buffer));
+Lisp * __exit(Lisp * a, Lisp * b) {
+  printf("exit 0");
+  return NULL;
 }
 
-/* Lisp * __sub(Lisp * a, Lisp * b) { return a - b; } */
+
+#define __bin_op_precall \
+  LispAtom * a1 = a->data; \
+  LispAtom * b1 = b->data; \
+  int ai = atoi(a1->value); \
+  int bi = atoi(b1->value);
+
+// TODO: dynamic value_buffer size
+#define __bin_op_postcall \
+  char value_buffer[64]; \
+  snprintf(value_buffer, 64, "%d", r); \
+  return new_lisp(ATOM, (void *) new_atom(value_buffer)); \
+
+
+Lisp * __add(Lisp * a, Lisp * b) {
+  __bin_op_precall
+  int r = ai + bi;
+  __bin_op_postcall
+}
+
+// Lisp * __sub(Lisp * a, Lisp * b) { return a - b; }
 /* Lisp * __mul(Lisp * a, Lisp * b) { return a * b; } */
 /* Lisp * __div(Lisp * a, Lisp * b) { return a / b; } */
 /* Lisp * __mod(Lisp * a, Lisp * b) { return a % b; } */
@@ -108,53 +126,75 @@ symfunc repl_env(char * sym) {
   if (strlen(sym) == 1) {
     switch (sym[0]) {
       case '+': return &__add;
-      /* case '-': return &__sub; */
-      /* case '*': return &__mul; */
-      /* case '/': return &__div; */
-      /* case '%': return &__mod; */
+      // case '-': return &__sub;
+      // case '*': return &__mul;
+      // case '/': return &__div;
+      // case '%': return &__mod;
     }
   }
+
+  if (strcmp(sym, "exit") == 0) {
+    return &__exit;
+  }
   
+  // TODO: free on error
   fprintf(stdout, "Error: Undefined Symbol %s\n", sym);
   exit(1);
-  //return &__undefined;
 }
 
 Lisp * eval_ast(Lisp * lisp) {
   switch(lisp->type) {
+
     case ATOM: {
       return lisp;
     }
+
     case LIST: {
       LispList * list = (LispList *) lisp->data;
 
+      if (list->length == 0) {
+        free_lisp(lisp);
+        return new_lisp(ATOM, new_atom("null"));
+      }
+
+      // Saves elements in an executable format
       for (int i=0; i<list->length; i++) {
         list->children[i] = eval_ast(list->children[i]);
       }
 
-      Lisp * lisp_symbol = list->children[0];
-      LispSymbol * symbol = lisp_symbol->data;
-      symfunc func = symbol->func;
-    
-      // TODO: Fix void lisp when asigning same expression more than once
-      // TODO: Fix void lisp when list have more than 3 elements
-
-      Lisp * acumulator = new_lisp(ATOM, new_atom("0"));
-
-      //Execute the assigned method
-      for (int i=1; i<list->length; i++) {
-        Lisp * lisp_el = list->children[i];
-        acumulator = func(acumulator, lisp_el);
-      }
+      if (list->children[0]->type == SYMBOL) {
+        LispSymbol * symbol = list->children[0]->data;
       
-      return acumulator;
+        // TODO: Fix void lisp when asigning same expression more than once
+        // TODO: Fix void lisp when list have more than 3 elements
+
+        Lisp * accumulator = new_lisp(ATOM, new_atom("0"));
+
+
+        //Execute the assigned method
+        for (int i=1; i<list->length; i++) {
+          Lisp * lisp_el = list->children[i];
+
+          accumulator = symbol->func(accumulator, lisp_el);
+          if (accumulator == NULL) {
+            free_lisp(lisp);
+            // // TODO: set causes of exit
+          }
+
+        }
+        
+        return accumulator;
+      }
+      return lisp;
     }
+
     case SYMBOL: {
       LispSymbol * symbol = (LispSymbol *) lisp->data;
       symbol->func = repl_env(symbol->value);
       return lisp;
     }
   }
+
   return new_lisp(ATOM, (void *) new_atom(""));
 }
 

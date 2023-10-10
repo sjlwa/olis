@@ -11,12 +11,12 @@ int main(int args, char **argv) {
     print_user_prompt();
     if (read_input(input_buffer) == 1) continue;
     Lisp * lisp = read_buffer(input_buffer);
-    char * output = build_from_lisp(lisp);
-    print(output);
+    // char * output = build_from_lisp(lisp);
+    // print(output);
 
     lisp = eval(lisp);
     char * eval_output = build_from_lisp(lisp);
-    print(eval_output);
+    print_output(eval_output);
   }
   
   return 0;
