@@ -27,6 +27,7 @@ char * build_from_token_reader(TokenReader * reader) {
 }
 
 
+
 char * __build_from_lisp(Lisp * lisp, char * out, size_t * out_len) {
 
   if (out_len == NULL) {
@@ -68,6 +69,7 @@ char * __build_from_lisp(Lisp * lisp, char * out, size_t * out_len) {
       
     // TODO: (FIX) Bad reading of a list 
     // example.  ( ( () ) ( ()()()() ) ) ...
+    // () -> )
     case LIST: {
       LispList * list = (LispList *) lisp->data;
 
@@ -154,6 +156,7 @@ Lisp * eval_ast(Lisp * lisp) {
 
       if (list->length == 0) {
         free_lisp(lisp);
+	lisp = NULL;
         return new_lisp(ATOM, new_atom("null"));
       }
 
@@ -178,6 +181,7 @@ Lisp * eval_ast(Lisp * lisp) {
           accumulator = symbol->func(accumulator, lisp_el);
           if (accumulator == NULL) {
             free_lisp(lisp);
+	    lisp = NULL;
             // // TODO: set causes of exit
           }
 

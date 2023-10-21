@@ -3,12 +3,15 @@
 
 #include "types.h"
 
+void set_input_buffer(InputBuffer * input_buffer, char * buffer);
 InputBuffer * new_input_buffer(void);
+void free_input_buffer(InputBuffer * input_buffer);
 int read_input(InputBuffer * input_buffer);
 
 TokenReader * new_reader(void);
 void free_reader(TokenReader * reader);
 int reader_insert_token(TokenReader * reader, char * token);
+char * copy_next_token(TokenReader * reader);
 char * reader_next(TokenReader * reader);
 char * reader_peek(TokenReader * reader);
 TokenReader * tokenize(InputBuffer * input_buffer);

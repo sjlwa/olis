@@ -6,9 +6,17 @@
 #include <stdlib.h>
 #include <string.h>
 
+
+void set_input_buffer(InputBuffer * input_buffer, char * buffer) {
+  input_buffer->buffer = malloc(sizeof(char) * strlen(buffer) + 1);
+  strcpy(input_buffer->buffer, buffer);
+  input_buffer->size = strlen(buffer);
+  input_buffer->length = strlen(buffer);
+}
+
 InputBuffer * new_input_buffer(void) {
   InputBuffer * input_buffer = malloc(sizeof(InputBuffer));
-  input_buffer->buffer = NULL;
+  input_buffer->buffer = NULL;  
   input_buffer->size = 0;
   input_buffer->length = 0;
   return input_buffer;
@@ -16,6 +24,7 @@ InputBuffer * new_input_buffer(void) {
 
 void free_input_buffer(InputBuffer * input_buffer) {
   free(input_buffer->buffer);
+  input_buffer->buffer = NULL;
   free(input_buffer);
 }
 
@@ -28,12 +37,14 @@ int read_input(InputBuffer * input_buffer) {
   // EOF after input
   if (feof(stdin)) {
     free_input_buffer(input_buffer);
+    input_buffer = NULL;
     exit(0);
   }
 
   // < 2 takes getline error and \n = 1, X\n = 2
   if (bytes_read < 2) {
     free_input_buffer(input_buffer);
+    input_buffer = NULL;
     input_buffer = (InputBuffer *) new_input_buffer();
     return 1;
 
@@ -53,22 +64,35 @@ TokenReader * new_reader(void) {
 }
 
 void free_reader(TokenReader * reader) {
-  free(reader->tokens);
-  free(reader);
+  if (reader != NULL) {
+    for (size_t i = 0; i < reader->length; i++) {
+      free(reader->tokens[i]);
+      reader->tokens[i] = NULL;
+    }
+    free(reader->tokens);
+    reader->tokens = NULL;
+    free(reader);
+  }
 }
 
-int reader_insert_token(TokenReader * reader, char * token) {
+int reader_insert_token(TokenReader * reader, char * token) {  
   reader->tokens = realloc(reader->tokens, sizeof(char *) * (reader->length + 1));
   if (reader->tokens == NULL) {
     free_reader(reader);
+    reader = NULL;
     return 1;
   }
-  reader->tokens[reader->length] = token;
+
+  char *token_cpy = malloc(sizeof(char) * (strlen(token) + 1));
+  strcpy(token_cpy, token);
+  
+  reader->tokens[reader->length] = token_cpy;
   reader->length++;
   return 0;
 }
 
 char * reader_next(TokenReader * reader) {
+  //TODO:not to read when theres no more tokens available
   return reader->tokens[reader->position++];
 }
 
@@ -83,10 +107,10 @@ TokenReader * tokenize(InputBuffer * input_buffer) {
   pcre2_code *re;
   int error_number;
   PCRE2_SIZE error_offset;
-  pcre2_match_data * match_data;
+  pcre2_match_data * match_data = NULL;
   int rc;
-  PCRE2_SIZE *ovector;
-  PCRE2_UCHAR *token_buffer = NULL;
+  PCRE2_SIZE * ovector = NULL;
+  PCRE2_UCHAR * token_buffer = NULL;
   PCRE2_SPTR pattern = (PCRE2_SPTR) \
   "[\\s,]*(~@|[\\[\\]{}()'`~^@]|\"(?:\\\\.|[^\\\\\"])*\"?|;.*|[^\\s\\[\\]{}('\"`,;)]*)";
   
@@ -100,10 +124,14 @@ TokenReader * tokenize(InputBuffer * input_buffer) {
   }
 
   int start_offset = 0;
-  for (;;) {
-    if (start_offset != 0 && ovector[0]==ovector[1]) {
+  int left_edge = -2;
+  int right_edge = -1;
+
+  for (;;) {    
+    if (ovector != NULL && start_offset != 0 && left_edge == right_edge) {
       break;
     }
+    
     match_data = pcre2_match_data_create_from_pattern(re, NULL);
     rc = pcre2_match(re,
                     (PCRE2_SPTR)input_buffer->buffer,
@@ -128,19 +156,25 @@ TokenReader * tokenize(InputBuffer * input_buffer) {
 
     // Save token
     reader_insert_token(reader, (char*) token_buffer);
-  
+    
     // New start offset
     ovector = pcre2_get_ovector_pointer(match_data);
+    
     start_offset = ovector[1];
+    left_edge = ovector[2];
+    right_edge = ovector[3];
 
+    //Free for every malloc
+    pcre2_match_data_free(match_data);
+    match_data = NULL;
+    pcre2_substring_free(token_buffer);
+    token_buffer = NULL;
   }
-
-  pcre2_match_data_free(match_data);
+  
   pcre2_code_free(re);
-  pcre2_substring_free(token_buffer);
+  re = NULL;
 
   return reader;
-
 }
 
 void list_insert(LispList * list, Lisp * lisp) {
@@ -161,17 +195,25 @@ LispList * new_list(void) {
   list->length = 0;
   return list;
 }
-
+ 
 void free_list(LispList * list) {
   for (int i=0; i<list->length; i++) {
     free_lisp(list->children[i]);
+    list->children[i] = NULL;
   }
+  
   free(list->children);
+  list->children = NULL;
+  
+  free(list);
 }
 
 Lisp * read_buffer(InputBuffer * input_buffer) {
   TokenReader * token_reader = (TokenReader *) tokenize(input_buffer);
-  return read_format(token_reader);
+  Lisp * lisp = read_format(token_reader);
+  free_reader(token_reader);
+  token_reader = NULL;
+  return lisp;
 }
 
 Lisp * new_lisp(LispType type, void * data) {
@@ -196,7 +238,8 @@ void free_lisp(Lisp * lisp) {
       break;
     }
     default: break;
-  }  
+  }
+  lisp->data = NULL;   
   free(lisp);
 }
 
@@ -208,6 +251,7 @@ LispAtom * new_atom(char * value) {
 
 void free_atom(LispAtom * atom) {
   free(atom->value);
+  atom->value = NULL;
   free(atom);
 }
 
@@ -220,6 +264,7 @@ LispSymbol * new_symbol(char * value) {
 
 void free_symbol(LispSymbol * symbol) {
   free(symbol->value);
+  symbol->value = NULL;
   free(symbol);
 }
 
@@ -238,6 +283,7 @@ Lisp * read_list(TokenReader * reader) {
       LispAtom * atom = (LispAtom *) lisp_child->data;
       if (atom->value[0] == ')') {
         free_lisp(lisp_child);
+	lisp_child = NULL;
       	break;
       }
     }
@@ -248,7 +294,6 @@ Lisp * read_list(TokenReader * reader) {
   Lisp * lisp_parent = new_lisp(LIST, (void *) list);
   return lisp_parent;
 }
-
 
 Lisp * read_atom(TokenReader * reader) {
   LispAtom * atom = new_atom(reader_next(reader));
@@ -275,6 +320,6 @@ Lisp * read_format(TokenReader * reader) {
   if (strcmp(token, "exit") == 0) {
     return read_symbol(reader);
   }
-  
+
   return read_atom(reader);
 }
