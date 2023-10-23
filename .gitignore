@@ -2,3 +2,6 @@ olis
 tmp/
 tests/olis_tests
 tests/mem/tokenize
+tests/memtest
+
+vgcore.*

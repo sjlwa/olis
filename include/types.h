@@ -42,4 +42,14 @@ typedef struct {
   symfunc func;
 } LispSymbol;
 
+
+typedef struct {
+  size_t pointer;
+  size_t length;
+} _ListMeta;
+
+typedef struct {
+  _ListMeta list;
+} _LispMeta;
+  
 #endif // TYPES_H

@@ -9,24 +9,21 @@
 int main(int args, char **argv) {
 
   InputBuffer * input_buffer = (InputBuffer *) new_input_buffer();
-  set_input_buffer(input_buffer, "  (  )  ");
   
    while(1) {
     print_user_prompt();
     if (read_input(input_buffer) == 1) continue;
   
     Lisp * lisp = read_buffer(input_buffer);
+    lisp = eval(lisp);
     char * output = build_from_lisp(lisp);
     print_output(output);
     
-    //    lisp = eval(lisp);
-    //    char * eval_output = build_from_lisp(lisp);
-    //    print_output(eval_output);
+    free(output);
+    output = NULL;
 
     free_lisp(lisp);
     lisp = NULL;
-    free(output);
-
   }
 
   free_input_buffer(input_buffer);

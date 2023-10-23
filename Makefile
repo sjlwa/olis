@@ -11,11 +11,11 @@ test: tests/tests.c ./src/* ./include/*
 	$(CC) -o tests/olis_tests tests/tests.c src/* $(CFLAGS) $(LIBS) $(LIBS_TEST)
 	./tests/olis_tests
 
-memtest: tests/mem/* src/* include/*
-	$(CC) -o tests/mem/tokenize tests/mem/*.c src/*.c $(CFLAGS) $(LIBS) $(LIBS_TEST)
+memtest: tests/memtest.c src/* include/*
+	$(CC) -o tests/memtest tests/memtest.c src/*.c $(CFLAGS) $(LIBS) $(LIBS_TEST)
 
 run_memtest:
-	valgrind ./tests/mem/tokenize
+	valgrind ./tests/memtest
 
 
 run:

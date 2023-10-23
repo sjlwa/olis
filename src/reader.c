@@ -178,7 +178,7 @@ TokenReader * tokenize(InputBuffer * input_buffer) {
 }
 
 void list_insert(LispList * list, Lisp * lisp) {
-  size_t new_size = sizeof(LispList) * list->length + 1;
+  size_t new_size = sizeof(Lisp*) * (list->length + 1);
   list->children = realloc(list->children, new_size);
   if (list->children != NULL) {
     list->children[list->length] = lisp;
@@ -197,6 +197,7 @@ LispList * new_list(void) {
 }
  
 void free_list(LispList * list) {
+  if (list == NULL) return;
   for (int i=0; i<list->length; i++) {
     free_lisp(list->children[i]);
     list->children[i] = NULL;
@@ -218,12 +219,18 @@ Lisp * read_buffer(InputBuffer * input_buffer) {
 
 Lisp * new_lisp(LispType type, void * data) {
   Lisp * lisp = (Lisp *) malloc(sizeof(Lisp));
+  if (lisp==NULL) {
+    perror("Allocation error: new_lisp");
+    exit(EXIT_FAILURE);
+  }
   lisp->type = type;
   lisp->data = data;
   return lisp;
 }
 
 void free_lisp(Lisp * lisp) {
+  if (lisp == NULL) return;
+  
   switch (lisp->type) {
     case ATOM: {
       free_atom(lisp->data);
@@ -239,7 +246,7 @@ void free_lisp(Lisp * lisp) {
     }
     default: break;
   }
-  lisp->data = NULL;   
+  lisp->data = NULL;
   free(lisp);
 }
 
@@ -250,6 +257,7 @@ LispAtom * new_atom(char * value) {
 }
 
 void free_atom(LispAtom * atom) {
+  if (atom == NULL) return;
   free(atom->value);
   atom->value = NULL;
   free(atom);
@@ -263,6 +271,7 @@ LispSymbol * new_symbol(char * value) {
 }
 
 void free_symbol(LispSymbol * symbol) {
+  if (symbol == NULL) return;
   free(symbol->value);
   symbol->value = NULL;
   free(symbol);
@@ -275,8 +284,7 @@ Lisp * read_list(TokenReader * reader) {
   // List grows dinamically as none right paren is found.
   LispList * list = new_list();
 
-  //TODO: Stop if there's no more children. Missing closing seg fault
-  
+  //TODO: Stop if there's no more children and a missing right parenthesis (seg fault)
    while (1) {
      Lisp * lisp_child = read_format(reader);
      if (lisp_child->type == ATOM) {       
